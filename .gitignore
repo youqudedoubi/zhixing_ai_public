@@ -1,0 +1,42 @@
+# 密钥 / 环境变量
+.env
+*.env
+env.py
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+
+# 运行时数据 / 私有文件（不应提交）
+backend/data/
+backend/scripts/
+项目介绍.md
+CLAUDE.md
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# 日志
+*.log
+
+# 临时 / 备份 / 交换文件
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# OS 元文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
