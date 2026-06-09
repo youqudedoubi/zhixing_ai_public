@@ -13,13 +13,25 @@
 - **前端**: React + Vite + TypeScript
 - **AI**: DeepSeek API
 
+## 环境要求
+
+- **Python** 3.10+
+- **Node.js** 18+
+- **Git**（项目运行依赖 Git 进行版本管理）
+
 ## 快速开始
 
 ### 环境准备
 
 ```bash
-# 复制配置文件，填入你的 API Key
-cp env.example.py env.py
+# 1. 安装 Python 依赖
+pip install -r requirements.txt
+
+# 2. 安装前端依赖
+cd code/frontend && npm install && cd ../..
+
+# 3. 复制配置文件，填入你的 API Key
+cp code/env.example.py code/env.py
 ```
 
 `env.py` 示例：
@@ -27,7 +39,7 @@ cp env.example.py env.py
 ```python
 from pathlib import Path
 
-root = Path(__file__).resolve().parent / "zhixing_data"
+root = Path(__file__).resolve().parent.parent / "zhixing_data"
 api_key = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
@@ -38,8 +50,8 @@ api_key = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 start.bat
 
 # 方式二：手动启动
-cd backend && python main.py
-cd frontend && npm install && npm run dev
+python -m uvicorn code.backend.main:app --host 127.0.0.1 --port 8000 --reload
+cd code/frontend && npm run dev
 ```
 
 前端默认运行在 `http://localhost:5173`，后端默认运行在 `http://localhost:8000`。
@@ -66,31 +78,34 @@ VSCode-like：活动栏 + 主侧栏 + 内容区 + 聊天区
 
 ```
 .
-├── library/                    # 通用 Agent 框架
-│   ├── agent_atoms/            # 核心抽象
-│   ├── examples/               # 框架使用示例
-│   └── infra/                  # 基础设施（调度器）
-├── backend/
-│   ├── api/                    # FastAPI 路由
-│   ├── models/                 # Pydantic 数据模型
-│   ├── services/
-│   │   ├── chat_agent/         # 主对话Agent
-│   │   ├── file/               # 文件读写服务
-│   │   ├── research/           # 深度研究
-│   │   ├── simulation/         # 情境模拟引擎
-│   │   ├── topic/              # 话题管理
-│   │   └── workspace/          # 工作区 Git 操作
-│   └── utils/
-├── frontend/
-│   └── src/
-│       ├── api/                # API 调用封装
-│       ├── components/         # React 组件
-│       └── types/              # TypeScript 类型定义
-├── shared/                     # 共享工具（路径 / 校验）
+├── code/
+│   ├── library/                # 通用 Agent 框架
+│   │   ├── agent_atoms/        # 核心抽象
+│   │   ├── examples/           # 框架使用示例
+│   │   └── infra/              # 基础设施（调度器）
+│   ├── backend/
+│   │   ├── api/                # FastAPI 路由
+│   │   ├── models/             # Pydantic 数据模型
+│   │   ├── services/
+│   │   │   ├── chat_agent/     # 主对话Agent
+│   │   │   ├── file/           # 文件读写服务
+│   │   │   ├── research/       # 深度研究
+│   │   │   ├── simulation/     # 情境模拟引擎
+│   │   │   ├── topic/          # 话题管理
+│   │   │   └── workspace/      # 工作区 Git 操作
+│   │   └── utils/
+│   ├── frontend/
+│   │   └── src/
+│   │       ├── api/            # API 调用封装
+│   │       ├── components/     # React 组件
+│   │       └── types/          # TypeScript 类型定义
+│   ├── shared/                 # 共享工具（路径 / 校验）
+│   ├── config.py               # 全局配置
+│   └── env.example.py          # 配置模板（复制为 code/env.py 后使用）
 ├── zhixing_data/               # 数据目录（空结构，运行后填充）
-├── env.example.py              # 配置模板
-├── config.py                   # 全局配置
-└── requirements.txt            # Python 依赖
+├── start.bat / stop.bat        # 启动/关闭脚本
+├── requirements.txt            # Python 依赖
+└── README.md
 ```
 
 ## License
