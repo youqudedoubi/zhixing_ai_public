@@ -97,7 +97,10 @@ export default function App() {
               {/* Both panels stay mounted to preserve internal state (e.g. file
                   tree expanded nodes) across activity switches. CSS display
                   toggling avoids the re-mount / re-fetch cycle. */}
-              <div style={{ display: activeActivity === "explorer" ? "block" : "none" }}>
+              <div
+                className="sidebar-panel"
+                style={{ display: activeActivity === "explorer" ? "block" : "none" }}
+              >
                 <FileTree
                   refreshKey={refreshKey}
                   selectedPath={selectedPath}
@@ -105,7 +108,10 @@ export default function App() {
                   onRefresh={handleRefresh}
                 />
               </div>
-              <div style={{ display: activeActivity === "simulation" ? "block" : "none" }}>
+              <div
+                className="sidebar-panel"
+                style={{ display: activeActivity === "simulation" ? "block" : "none" }}
+              >
                 <SimulationSidebar
                   onOpenFile={handleSelectFile}
                   onOpenSimulation={handleOpenSimulation}

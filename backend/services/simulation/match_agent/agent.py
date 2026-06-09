@@ -1,8 +1,12 @@
-"""match_agent: 组装 model + tool + loop，评估模式与情境匹配度。"""
+"""match_agent: 组装 model + tool + loop，评估模式与情境匹配度。
+
+使用 Scheduler 并发处理多个批次，减少评估阶段的等待时间。
+"""
 
 from code.config import api_key
 from code.library.agent_atoms.llm.BaseModel import BaseModel
 from code.library.agent_atoms.tools.registry import ToolRegistry
+from code.library.infra.scheduler import Scheduler
 from code.backend.models.schemas import PatternItem
 
 from .prompt import _MATCH_PROMPT
@@ -27,36 +31,61 @@ def _tools_text(registry: ToolRegistry) -> str:
     )
 
 
+def _match_one_batch(
+    situation: str,
+    batch: list[PatternItem],
+) -> dict[str, float]:
+    """对单个批次的模式评估匹配度，返回 {模式名: 匹配分}。"""
+    patterns_block = "\n".join(f"- {p.name}: {p.rel_path}" for p in batch)
+
+    submit_tool = make_submit_tool()
+    registry = ToolRegistry()
+    registry.register(submit_tool)
+
+    prompt = _MATCH_PROMPT.format(
+        tools_block=_tools_text(registry),
+        situation=situation,
+        patterns_block=patterns_block,
+    )
+
+    model = _make_model()
+    args = run_loop(model, registry, prompt, "请按照指示完成任务。", "submit_match_scores")
+
+    scores: dict[str, float] = {}
+    if args:
+        for item in args.get("scores", []):
+            if isinstance(item, dict) and "name" in item:
+                try:
+                    scores[item["name"]] = float(item.get("score", 0))
+                except (ValueError, TypeError):
+                    scores[item["name"]] = 0.0
+    return scores
+
+
 def match_patterns(
     situation: str,
     patterns: list[PatternItem],
     batch_size: int = 5,
+    max_workers: int = 6,
 ) -> dict[str, float]:
-    """评估一批模式与情境的匹配度，返回 {模式名: 匹配分}。"""
-    scores: dict[str, float] = {}
+    """评估一批模式与情境的匹配度，返回 {模式名: 匹配分}。
 
-    for i in range(0, len(patterns), batch_size):
-        batch = patterns[i: i + batch_size]
-        patterns_block = "\n".join(f"- {p.name}: {p.rel_path}" for p in batch)
+    内部将模式按 batch_size 切分为多个批次，通过 Scheduler 并发调用 LLM。
+    """
+    if not patterns:
+        return {}
 
-        submit_tool = make_submit_tool()
-        registry = ToolRegistry()
-        registry.register(submit_tool)
+    batches = [patterns[i: i + batch_size] for i in range(0, len(patterns), batch_size)]
 
-        prompt = _MATCH_PROMPT.format(
-            tools_block=_tools_text(registry),
-            situation=situation,
-            patterns_block=patterns_block,
-        )
+    scheduler = Scheduler(max_workers=max_workers)
+    batch_results = scheduler.map_ordered(
+        fn=lambda b: _match_one_batch(situation, b),
+        items=batches,
+        desc="评估情境匹配度",
+        disable=True,
+    )
 
-        model = _make_model()
-        args = run_loop(model, registry, prompt, "请按照指示完成任务。", "submit_match_scores")
-        if args:
-            for item in args.get("scores", []):
-                if isinstance(item, dict) and "name" in item:
-                    try:
-                        scores[item["name"]] = float(item.get("score", 0))
-                    except (ValueError, TypeError):
-                        scores[item["name"]] = 0.0
-
-    return scores
+    all_scores: dict[str, float] = {}
+    for scores in batch_results:
+        all_scores.update(scores)
+    return all_scores

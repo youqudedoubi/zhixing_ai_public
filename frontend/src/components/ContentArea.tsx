@@ -15,7 +15,7 @@ interface TabInfo {
   dirty: boolean
   content: string
   // research tab fields
-  tabType?: "file" | "research" | "log-chart" | "simulation"
+  tabType?: "file" | "research" | "log-chart" | "simulation" | "diff"
   researchTopic?: string
   researchMessages?: ResearchMessage[]
   researchDone?: boolean
@@ -27,6 +27,10 @@ interface TabInfo {
   simulationName?: string
   simulationMaxBranches?: number
   simulationMaxSteps?: number
+  // diff tab fields
+  diffFilePath?: string
+  diffOldContent?: string
+  diffNewContent?: string
 }
 
 interface DiffInfo {
@@ -129,6 +133,34 @@ export default function ContentArea({ activePath, onActivePathChange, diffInfo, 
     onActivePathChange(simulationTabId)
   }, [simulationTabId, simulationRoot, simulationName, simulationMaxBranches, simulationMaxSteps])
 
+  // Sync diff view as a tab when diffInfo changes
+  useEffect(() => {
+    if (!diffInfo) return
+    const tabPath = `diff:${diffInfo.filePath}`
+    setTabs((prev) => {
+      const existing = prev.find((t) => t.path === tabPath)
+      if (existing) {
+        // Update existing diff tab with new content
+        return prev.map((t) =>
+          t.path === tabPath
+            ? { ...t, diffOldContent: diffInfo.oldContent, diffNewContent: diffInfo.newContent }
+            : t,
+        )
+      }
+      return [...prev, {
+        path: tabPath,
+        name: `diff: ${diffInfo.filePath.split("/").pop() || diffInfo.filePath}`,
+        dirty: false,
+        content: "",
+        tabType: "diff",
+        diffFilePath: diffInfo.filePath,
+        diffOldContent: diffInfo.oldContent,
+        diffNewContent: diffInfo.newContent,
+      }]
+    })
+    onActivePathChange(tabPath)
+  }, [diffInfo])
+
   const openFile = useCallback(
     async (path: string) => {
       const existing = tabs.find((t) => t.path === path)
@@ -206,7 +238,7 @@ export default function ContentArea({ activePath, onActivePathChange, diffInfo, 
   useEffect(() => {
     if (activePath && !tabs.some((t) => t.path === activePath)) {
       // Don't try to open special tabs as files
-      if (!activePath.startsWith("simulation:") && !activePath.startsWith("research:")) {
+      if (!activePath.startsWith("simulation:") && !activePath.startsWith("research:") && !activePath.startsWith("diff:")) {
         openFile(activePath)
       }
     }
@@ -274,12 +306,16 @@ export default function ContentArea({ activePath, onActivePathChange, diffInfo, 
 
   const handleCloseTab = useCallback(
     (path: string) => {
+      const closingTab = tabs.find((t) => t.path === path)
       setTabs((prev) => prev.filter((t) => t.path !== path))
       setTabContents((prev) => {
         const next = new Map(prev)
         next.delete(path)
         return next
       })
+      if (closingTab?.tabType === "diff") {
+        onCloseDiff()
+      }
       if (activePath === path) {
         const idx = tabs.findIndex((t) => t.path === path)
         const remaining = tabs.filter((t) => t.path !== path)
@@ -291,7 +327,7 @@ export default function ContentArea({ activePath, onActivePathChange, diffInfo, 
         }
       }
     },
-    [activePath, tabs, onActivePathChange],
+    [activePath, tabs, onActivePathChange, onCloseDiff],
   )
 
   const handleSelectTab = useCallback(
@@ -373,34 +409,6 @@ export default function ContentArea({ activePath, onActivePathChange, diffInfo, 
     try { processEntries = JSON.parse(processJsonContent) } catch { /* ignore */ }
   }
 
-  // Show diff view when diffInfo is set
-  if (diffInfo) {
-    return (
-      <div className="content-area">
-        <div className="tab-bar">
-          <div className="tab active">
-            <span>diff: {diffInfo.filePath}</span>
-          </div>
-          <button className="tab-close-btn" onClick={onCloseDiff} style={{
-            marginLeft: "auto",
-            marginRight: 8,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: 14,
-          }}>
-            ✕
-          </button>
-        </div>
-        <DiffView
-          filePath={diffInfo.filePath}
-          oldContent={diffInfo.oldContent}
-          newContent={diffInfo.newContent}
-        />
-      </div>
-    )
-  }
-
   const renderActiveContent = () => {
     if (!activePath || !activeTab) {
       return <div className="editor-empty">打开文件以开始编辑</div>
@@ -432,6 +440,16 @@ export default function ContentArea({ activePath, onActivePathChange, diffInfo, 
         <LogChart
           content={activeTab.logContent ?? ""}
           patternName={activeTab.logPatternName ?? "模式"}
+        />
+      )
+    }
+    // Diff tab
+    if (activeTab.tabType === "diff") {
+      return (
+        <DiffView
+          filePath={activeTab.diffFilePath ?? ""}
+          oldContent={activeTab.diffOldContent ?? ""}
+          newContent={activeTab.diffNewContent ?? ""}
         />
       )
     }
